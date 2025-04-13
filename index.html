@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>節點系統</title>
+
+  <!-- Vue & Draggable -->
+  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vuedraggable@4.1.0/dist/vuedraggable.umd.min.js"></script>
+
+  <!-- Tailwind CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+
+  <!-- Google Fonts: Orbitron -->
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500&display=swap" rel="stylesheet">
+
+  <!-- 自訂動畫樣式 -->
+  <style>
+    body {
+      font-family: 'Orbitron', sans-serif;
+      background-color: #272727;
+    }
+    @keyframes breatheLine {
+      0%, 100% { opacity: 0.5; }
+      50% { opacity: 1; }
+    }
+    .breathe-line {
+      animation: breatheLine 3s ease-in-out infinite;
+    }
+    @keyframes pulseGlow {
+      0% { box-shadow: 0 0 0px rgba(0,255,255,0.4); }
+      50% { box-shadow: 0 0 12px rgba(0,255,255,0.9); }
+      100% { box-shadow: 0 0 0px rgba(0,255,255,0.4); }
+    }
+    .pulse-shadow {
+      animation: pulseGlow 2s infinite;
+    }
+  </style>
+</head>
+
+<body class="text-white">
+  <div id="app" class="flex h-screen bg-[#272727]">
+    <!-- Sidebar -->
+    <div class="w-72 bg-[#1a1a2e] p-4 shadow-md">
+      <h2 class="text-lg font-bold mb-4">Sidebar for Node {{ selectedNode?.id }}</h2>
+
+      <div v-if="selectedNode" class="space-y-4">
+        <div>
+          <label class="text-sm font-medium">節點名稱：</label>
+          <input
+            v-model="selectedNode.name"
+            class="mt-1 block w-full border rounded p-2 bg-gray-800 text-white"
+          />
+        </div>
+
+        <div>
+          <label class="text-sm font-medium">自訂欄位</label>
+          <div
+            v-for="(field, index) in selectedNode.fields"
+            :key="index"
+            class="flex items-center space-x-2 mt-2"
+          >
+            <input
+              v-model="field.key"
+              placeholder="欄位名"
+              class="flex-1 border rounded p-1 bg-gray-700 text-white"
+            />
+            <input
+              v-model="field.value"
+              placeholder="內容"
+              class="flex-1 border rounded p-1 bg-gray-700 text-white"
+            />
+            <button @click="removeField(index)" class="text-red-400 hover:underline text-sm">移除</button>
+          </div>
+          <button @click="addField" class="mt-2 px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700">
+            ➕ 新增欄位
+          </button>
+        </div>
+      </div>
+
+      <div v-else>
+        <p class="text-sm text-gray-400">請先選擇一個節點。</p>
+      </div>
+    </div>
+
+    <!-- Main content -->
+    <div class="flex-1 p-6 bg-[#272727]">
+      <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-bold">節點線</h1>
+        <div class="space-x-2">
+          <button @click="addNode" class="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600">
+            ➕ 新增節點
+          </button>
+          <button @click="exportJSON" class="px-4 py-2 bg-gray-700 text-white rounded hover:bg-gray-800">
+            📤 匯出 JSON
+          </button>
+        </div>
+      </div>
+
+      <div class="relative h-36">
+        <!-- ✅ 修正的白線樣式 -->
+        <div class="absolute top-1/2 left-0 right-0 h-[2px] bg-white pointer-events-none breathe-line z-50"></div>
+
+        <!-- 拖曳節點 -->
+        <draggable
+          v-model="nodes"
+          item-key="id"
+          class="flex space-x-6 items-center relative z-20 h-full justify-start pl-4"
+          @end="onDragEnd"
+        >
+          <template #item="{ element }">
+            <div class="flex flex-col items-center group" @click="selectNodeById(element.id)">
+              <div class="mb-2 text-xs text-white px-2 py-1 rounded bg-black/50">
+                {{ element.name }}
+              </div>
+              <div
+                :class="[ 
+                  'w-10 h-10 rounded-full flex items-center justify-center text-base font-bold cursor-pointer transition hover:scale-110 pulse-shadow',
+                  element.completed 
+                    ? 'bg-green-500 ring-2 ring-green-300' 
+                    : 'bg-red-500 ring-2 ring-red-300'
+                ]"
+              >
+                {{ element.completed ? '✔' : '!' }}
+              </div>
+            </div>
+          </template>
+        </draggable>
+      </div>
+    </div>
+  </div>
+
+  <!-- ✅ 完成狀態切換按鈕 -->
+  <div
+    v-if="selectedNode"
+    class="fixed bottom-4 right-4 bg-gray-900 text-white px-4 py-2 rounded shadow-lg flex items-center space-x-2"
+  >
+    <button
+      @click="toggleCompleted"
+      class="bg-green-600 hover:bg-green-700 px-4 py-1 rounded text-sm"
+    >
+      {{ selectedNode.completed ? '✔ 已完成' : '❗ 未完成' }}
+    </button>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
