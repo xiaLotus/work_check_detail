@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>節點系統</title>
+  <title>拖曳節點排序</title>
 
   <!-- Vue & Draggable -->
   <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
@@ -16,133 +16,138 @@
   <!-- Google Fonts: Orbitron -->
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500&display=swap" rel="stylesheet">
 
-  <!-- 自訂動畫樣式 -->
   <style>
     body {
-      font-family: 'Orbitron', sans-serif;
       background-color: #272727;
-    }
-    @keyframes breatheLine {
-      0%, 100% { opacity: 0.5; }
-      50% { opacity: 1; }
-    }
-    .breathe-line {
-      animation: breatheLine 3s ease-in-out infinite;
-    }
-    @keyframes pulseGlow {
-      0% { box-shadow: 0 0 0px rgba(0,255,255,0.4); }
-      50% { box-shadow: 0 0 12px rgba(0,255,255,0.9); }
-      100% { box-shadow: 0 0 0px rgba(0,255,255,0.4); }
-    }
-    .pulse-shadow {
-      animation: pulseGlow 2s infinite;
     }
   </style>
 </head>
-
-<body class="text-white">
-  <div id="app" class="flex h-screen bg-[#272727]">
+<body>
+  <div id="app" class="h-screen flex text-white overflow-hidden relative">
+    
     <!-- Sidebar -->
-    <div class="w-72 bg-[#1a1a2e] p-4 shadow-md">
-      <h2 class="text-lg font-bold mb-4">Sidebar for Node {{ selectedNode?.id }}</h2>
+    <div class="w-64 bg-gray-900 p-4 flex-shrink-0 overflow-y-auto">
+      <h2 class="text-xl font-bold mb-4">側邊欄</h2>
+      <p class="text-sm text-gray-400">點選節點後可編輯內容</p>
 
-      <div v-if="selectedNode" class="space-y-4">
-        <div>
-          <label class="text-sm font-medium">節點名稱：</label>
+      <div v-if="selectedNode" class="mt-6">
+        <h3 class="text-md font-semibold mb-2">編輯節點文字</h3>
+        <input
+          type="text"
+          v-model="selectedNode.text"
+          class="w-full p-2 bg-gray-800 text-white rounded border border-gray-600"
+        />
+
+        <!-- 動態欄位 -->
+        <h3 class="text-md font-semibold mb-2 mt-4">欄位項目</h3>
+        <div v-for="(field, index) in selectedNode.fields" :key="index" class="mb-2">
           <input
-            v-model="selectedNode.name"
-            class="mt-1 block w-full border rounded p-2 bg-gray-800 text-white"
+            type="text"
+            v-model="field.item"
+            placeholder="項目"
+            class="w-full mb-1 p-2 bg-gray-800 text-white rounded border border-gray-600"
           />
+          <input
+            type="date"
+            v-model="field.due"
+            placeholder="Due"
+            class="w-full p-2 bg-gray-800 text-white rounded border border-gray-600"
+          />
+          <button @click="removeField(index)" class="text-red-400 text-sm mt-1">🗑️ 刪除</button>
         </div>
 
-        <div>
-          <label class="text-sm font-medium">自訂欄位</label>
-          <div
-            v-for="(field, index) in selectedNode.fields"
-            :key="index"
-            class="flex items-center space-x-2 mt-2"
-          >
-            <input
-              v-model="field.key"
-              placeholder="欄位名"
-              class="flex-1 border rounded p-1 bg-gray-700 text-white"
-            />
-            <input
-              v-model="field.value"
-              placeholder="內容"
-              class="flex-1 border rounded p-1 bg-gray-700 text-white"
-            />
-            <button @click="removeField(index)" class="text-red-400 hover:underline text-sm">移除</button>
-          </div>
-          <button @click="addField" class="mt-2 px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700">
-            ➕ 新增欄位
-          </button>
-        </div>
-      </div>
-
-      <div v-else>
-        <p class="text-sm text-gray-400">請先選擇一個節點。</p>
+        <button
+          @click="addField"
+          class="mt-2 px-3 py-1 bg-gray-700 rounded hover:bg-gray-600 text-white text-sm"
+        >
+          ➕ 新增欄位
+        </button>
       </div>
     </div>
 
-    <!-- Main content -->
-    <div class="flex-1 p-6 bg-[#272727]">
-      <div class="flex justify-between items-center mb-6">
-        <h1 class="text-2xl font-bold">節點線</h1>
-        <div class="space-x-2">
-          <button @click="addNode" class="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600">
-            ➕ 新增節點
-          </button>
-          <button @click="exportJSON" class="px-4 py-2 bg-gray-700 text-white rounded hover:bg-gray-800">
-            📤 匯出 JSON
-          </button>
-        </div>
-      </div>
-
-      <div class="relative h-36">
-        <!-- ✅ 修正的白線樣式 -->
-        <div class="absolute top-1/2 left-0 right-0 h-[2px] bg-white pointer-events-none breathe-line z-50"></div>
-
-        <!-- 拖曳節點 -->
+    <!-- Main Content -->
+    <div class="flex-1 flex flex-col pt-10 px-6 overflow-hidden">
+      
+      <!-- 節點列 -->
+      <div class="overflow-x-auto max-w-full">
         <draggable
           v-model="nodes"
           item-key="id"
-          class="flex space-x-6 items-center relative z-20 h-full justify-start pl-4"
-          @end="onDragEnd"
+          animation="200"
+          ghost-class="opacity-30"
+          class="min-w-fit flex items-center py-4"
+          :handle="'.drag-handle'"
         >
-          <template #item="{ element }">
-            <div class="flex flex-col items-center group" @click="selectNodeById(element.id)">
-              <div class="mb-2 text-xs text-white px-2 py-1 rounded bg-black/50">
-                {{ element.name }}
+        <template #item="{ element, index }">
+          <div class="flex items-center space-x-2">
+            <!-- 節點區塊 -->
+            <div
+              class="flex flex-col items-center cursor-pointer px-2"
+              @click="selectedNodeId = element.id"
+            >
+              <div class="text-sm text-gray-300 text-center mb-1 break-words whitespace-normal max-w-[8rem]">
+                {{ element.text }}
               </div>
               <div
-                :class="[ 
-                  'w-10 h-10 rounded-full flex items-center justify-center text-base font-bold cursor-pointer transition hover:scale-110 pulse-shadow',
-                  element.completed 
-                    ? 'bg-green-500 ring-2 ring-green-300' 
-                    : 'bg-red-500 ring-2 ring-red-300'
-                ]"
+                class="w-12 h-12 flex items-center justify-center text-2xl rounded-full shadow-lg bg-gray-800 hover:bg-gray-700 select-none"
+                :class="{
+                  'text-green-400 border-4 border-green-400': element.status === '完成',
+                  'text-red-400 border-4 border-red-400': element.status === '未完成'
+                }"
               >
-                {{ element.completed ? '✔' : '!' }}
+                {{ element.status === '完成' ? '✅' : '❌' }}
               </div>
             </div>
-          </template>
+
+              <!-- 線 -->
+              <div
+                v-if="index < nodes.length - 1"
+                class="flex items-center justify-center"
+              >
+                <div class="mt-6">👉</div>
+              </div>
+          </div>
+        </template>
         </draggable>
       </div>
-    </div>
-  </div>
 
-  <!-- ✅ 完成狀態切換按鈕 -->
-  <div
-    v-if="selectedNode"
-    class="fixed bottom-4 right-4 bg-gray-900 text-white px-4 py-2 rounded shadow-lg flex items-center space-x-2"
-  >
-    <button
-      @click="toggleCompleted"
-      class="bg-green-600 hover:bg-green-700 px-4 py-1 rounded text-sm"
-    >
-      {{ selectedNode.completed ? '✔ 已完成' : '❗ 未完成' }}
-    </button>
+      <!-- 按鈕列 -->
+      <div class="flex justify-end gap-4 mt-6">
+        <button
+          @click="addNode"
+          class="px-4 py-2 bg-green-600 rounded hover:bg-green-700 text-white font-semibold shadow"
+        >
+          ➕ 新增節點
+        </button>
+        <button
+          @click="removeNode"
+          class="px-4 py-2 bg-red-600 rounded hover:bg-red-700 text-white font-semibold shadow"
+        >
+          🗑️ 刪除節點
+        </button>
+      </div>
+
+      <!-- 標記完成按鈕 -->
+      <div class="absolute bottom-6 right-6 z-10">
+        <button
+          @click="markAsCompleted"
+          class="px-4 py-2 bg-blue-600 rounded hover:bg-blue-700 text-white font-semibold shadow"
+          :disabled="!selectedNode || selectedNode.status === '完成'"
+        >
+          ✅ 標記完成
+        </button>
+      </div>
+
+      <!-- 匯出 JSON 按鈕 -->
+      <div class="absolute bottom-6 left-6 z-10">
+        <button
+          @click="exportJSON"
+          class="px-4 py-2 bg-yellow-500 rounded hover:bg-yellow-600 text-black font-semibold shadow"
+        >
+          🚀 匯出 JSON
+        </button>
+      </div>
+    </div>
   </div>
 
   <script src="app.js"></script>

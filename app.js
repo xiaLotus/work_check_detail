@@ -1,39 +1,50 @@
-const { createApp } = Vue;
 const draggable = vuedraggable;
 
-createApp({
-  components: { draggable },
+const app = Vue.createApp({
   data() {
     return {
-      nodes: [
-        { id: 1, name: '節點 1', fields: [], completed: false }
-      ],
-      selectedNodeId: 1,
-      nextId: 2
+      nodes: Array.from({ length: 3 }, (_, i) => ({
+        id: i + 1,
+        text: `節點 ${i + 1} 的說明`,
+        status: '未完成',
+        fields: []
+      })),
+      nextId: 4,
+      selectedNodeId: null
     };
   },
   computed: {
     selectedNode() {
-      return this.nodes.find(n => n.id === this.selectedNodeId) || null;
+      return this.nodes.find(n => n.id === this.selectedNodeId);
     }
   },
   methods: {
     addNode() {
-      const newNode = {
-        id: this.nextId++,
-        name: `節點 ${this.nextId - 1}`,
-        fields: [],
-        completed: false
-      };
-      this.nodes.push(newNode);
-      this.selectedNodeId = newNode.id;
+      this.nodes.push({
+        id: this.nextId,
+        text: `節點 ${this.nextId} 的說明`,
+        status: '未完成',
+        fields: []
+      });
+      this.nextId++;
     },
-    selectNodeById(id) {
-      this.selectedNodeId = id;
+    removeNode() {
+      if (this.nodes.length > 0) {
+        const removed = this.nodes.pop();
+        if (removed.id === this.selectedNodeId) {
+          this.selectedNodeId = null;
+        }
+        this.nextId--;
+      }
+    },
+    markAsCompleted() {
+      if (this.selectedNode && this.selectedNode.status === '未完成') {
+        this.selectedNode.status = '完成';
+      }
     },
     addField() {
       if (this.selectedNode) {
-        this.selectedNode.fields.push({ key: '', value: '' });
+        this.selectedNode.fields.push({ item: '', due: '' });
       }
     },
     removeField(index) {
@@ -41,17 +52,21 @@ createApp({
         this.selectedNode.fields.splice(index, 1);
       }
     },
-    toggleCompleted() {
-        const node = this.nodes.find(n => n.id === this.selectedNodeId);
-        if (node) node.completed = !node.completed;
-    },
-    onDragEnd() {
-      // 保持 selectedNodeId，不用處理
-    },
     exportJSON() {
-      const jsonData = JSON.stringify(this.nodes, null, 2);
-      console.log('🚀 匯出 JSON:', jsonData);
-      alert('JSON 已輸出到 console！');
+      const result = this.nodes.map(node => ({
+        id: node.id,
+        name: node.text,
+        completed: node.status === '完成',
+        fields: node.fields.map(f => ({
+          key: f.item,
+          value: f.due
+        }))
+      }));
+      console.log("🚀 匯出 JSON:", JSON.stringify(result, null, 2));
+      alert("已匯出，請打開 console 查看結果！");
     }
   }
-}).mount('#app');
+});
+
+app.component('draggable', draggable);
+app.mount('#app');
